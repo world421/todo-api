@@ -12,8 +12,14 @@ import com.example.todo.userapi.entity.User;
 import com.example.todo.userapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -23,9 +29,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
+    @Value("${upload.path}")
+    private String uploadRootPath;
 
     // 회원 가입 처리
-    public UserSignUpResponseDTO create(final UserRequestSignUpDTO dto) {
+    public UserSignUpResponseDTO create(
+            final UserRequestSignUpDTO dto,
+            final String uploadedFilePath
+    ) {
         String email = dto.getEmail();
 
         if(isDuplicate(email)) {
@@ -38,7 +49,7 @@ public class UserService {
         dto.setPassword(encoded);
 
         // dto를 User Entity로 변환해서 저장
-        User saved = userRepository.save(dto.toEntity());
+        User saved = userRepository.save(dto.toEntity(uploadedFilePath));
         log.info("회원 가입 정상 수행됨! - saved user - {}", saved);
 
         return new UserSignUpResponseDTO(saved);
@@ -86,9 +97,9 @@ public class UserService {
                 );
 
         // 일반(COMMON) 회원이 아니라면 예외 발생
-        if(userInfo.getRole() != Role.COMMON) {
-            throw new IllegalArgumentException("일반 회원이 아니라면 등급을 상승시킬 수 없습니다.");
-        }
+//        if(userInfo.getRole() != Role.COMMON) {
+//            throw new IllegalArgumentException("일반 회원이 아니라면 등급을 상승시킬 수 없습니다.");
+//        }
 
         // 등급 변경
         foundUser.changeRole(Role.PREMIUM);
@@ -98,6 +109,36 @@ public class UserService {
         String token = tokenProvider.createToken(saved);
 
         return new LoginResponseDTO(saved, token);
+    }
+
+    /**
+     * 업로드 된 파일을 서버에 저장하고 저장 경로를 리턴.
+     *
+     * @param profileImg - 업로드 된 파일의 정보
+     * @return 실제로 저장된 이미지 경로
+     */
+    public String uploadProfileImage(MultipartFile profileImg) throws IOException {
+
+        // 루트 디렉토리가 실존하는 지 확인 후 존재하지 않으면 생성.
+        File rootDir = new File(uploadRootPath);
+        if(!rootDir.exists()) rootDir.mkdirs();
+
+        // 파일명을 유니크하게 변경 (이름 충돌 가능성을 대비)
+        // UUID와 원본파일명을 혼합. -> 규칙은 없어요.
+        String uniqueFileName
+                = UUID.randomUUID() + "_" + profileImg.getOriginalFilename();
+
+        // 파일을 저장
+        File uploadFile = new File(uploadRootPath + "/" + uniqueFileName);
+        profileImg.transferTo(uploadFile);
+
+        return uniqueFileName;
+    }
+
+    public String findProfilePath(String userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        // DB에 저장되는 profile_img는 파일명. -> service가 가지고 있는 Root Path와 연결해서 리턴.
+        return uploadRootPath + "/" + user.getProfileImg();
     }
 }
 

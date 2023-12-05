@@ -42,12 +42,17 @@ public class User {
     private Role role = Role.COMMON; // 유저 권한
 
     private String profileImg; // 프로필 이미지 경로
+    
+    private String accessToken;// 카카오 로그인시 발급받는 accessToken을 저장 -> 로그아웃때 필요
 
     // 등급 수정 메서드
     public void changeRole(Role role) {
         this.role = role;
     }
 
+    public void setAccessToken(String accessToken){
+        this.accessToken = accessToken;
+    }
 }
 
 

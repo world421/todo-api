@@ -134,7 +134,7 @@ public class UserController {
     // 프로필 사진 이미지 데이터를 클라이언트에게 응답 처리
     @GetMapping("/load-profile")
     public ResponseEntity<?> loadFile(
-            @AuthenticationPrincipal TokenUserInfo userInfo
+            @AuthenticationPrincipal TokenUserInfo userInfo // 토큰 받아오기
     ) {
         log.info("/api/auth/load-profile - GET!, user: {}", userInfo.getEmail());
 
@@ -199,9 +199,21 @@ public class UserController {
     @GetMapping("/kakaoLogin")
     public ResponseEntity<?> kakaoLogin(String code) {
         log.info("/api/auth/kakaoLogin - GET! -code: {}", code);
-        userService.kakaoService(code);
+        LoginResponseDTO responseDTO = userService.kakaoService(code);
 
-        return null;
+        return ResponseEntity.ok().body(responseDTO);
+    }
+    
+    // 로그아웃 ㅊ처리
+    @GetMapping("/logout")
+    public ResponseEntity<?> logout(
+            @AuthenticationPrincipal TokenUserInfo userInfo // 토큰 받아오기
+    ){
+        log.info("api/auth/logout - GET ! -user{}", userInfo.getEmail());
+
+        String result = userService.logout(userInfo);
+
+        return ResponseEntity.ok().body(result);
     }
 
 
